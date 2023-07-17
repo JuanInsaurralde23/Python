@@ -1,0 +1,359 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import win32com.client as win32
+import PyPDF2
+from datetime import datetime
+import pandas as pd
+import re
+import time
+import pyautogui
+import os
+import shutil
+
+
+#Variables globales
+hoy = datetime.now() 
+fecha_hoy = hoy.strftime('%d-%m-%Y')
+chrome_driver = 'C:/Users/pepe/torta/Script PY/chromedriver.exe' #Indico ruta chromedrive
+
+
+driver = webdriver.Chrome(chrome_driver)
+
+########################################################################### LAS 2 libor #################################################
+
+# fecha 1 mes
+def fecha_lib(driver):
+    url = "https://www.global-rates.com/en/interest-rates/libor/american-dollar/usd-libor-interest-rate-1-month.aspx"
+    driver.get(url)
+
+    tabla = driver.find_element(By.XPATH, '//*[@id="ctl00"]/table[4]/tbody/tr/td/table/tbody/tr[2]/td[2]/table[5]').find_elements(By.TAG_NAME,'tr')
+    i = 0
+    for tr in tabla:
+        td = tr.find_elements(By.TAG_NAME,'tr')
+        if i == 0:
+            fecha_libor = td[1].text
+        i += 1
+
+    fecha_libor = (fecha_libor.split()[:3])
+    date_string = ' '.join(fecha_libor)
+    date_object = datetime.strptime(date_string, '%B %d %Y')
+    fecha_libor = date_object.strftime('%d/%m/%Y')
+    return fecha_libor
+
+# Libor 1 mes
+def get_libor_1_month(driver):
+    url = "https://www.global-rates.com/en/interest-rates/libor/american-dollar/usd-libor-interest-rate-1-month.aspx"
+    driver.get(url)
+
+    tabla = driver.find_element(By.XPATH, '//*[@id="ctl00"]/table[4]/tbody/tr/td/table/tbody/tr[2]/td[2]/table[5]').find_elements(By.TAG_NAME,'tr')
+    i = 0
+    for tr in tabla:
+        td = tr.find_elements(By.TAG_NAME,'tr')
+        if i == 0:
+            importe = td[1].text
+        i += 1
+
+    Libor_1 = float(importe.split()[-2])
+    return Libor_1
+
+#libor_12 mes
+def get_libor_12_months(driver):
+    url = "https://www.global-rates.com/en/interest-rates/libor/american-dollar/usd-libor-interest-rate-12-months.aspx"
+    driver.get(url)
+
+    tabla = driver.find_element(By.XPATH, '//*[@id="ctl00"]/table[4]/tbody/tr/td/table/tbody/tr[2]/td[2]/table[5]').find_elements(By.TAG_NAME,'tr')
+    i = 0
+    for tr in tabla:
+        td = tr.find_elements(By.TAG_NAME,'tr')
+        if i == 0:
+            importe2 = td[1].text
+        i += 1
+
+    Libor_12 = float(importe2.split()[-2])
+    return Libor_12
+
+#Fecha libor_12
+def fecha_lib2(driver):
+    url = "https://www.global-rates.com/en/interest-rates/libor/american-dollar/usd-libor-interest-rate-12-months.aspx"
+    driver.get(url)
+
+    tabla = driver.find_element(By.XPATH, '//*[@id="ctl00"]/table[4]/tbody/tr/td/table/tbody/tr[2]/td[2]/table[5]').find_elements(By.TAG_NAME,'tr')
+    i = 0
+    for tr in tabla:
+        td = tr.find_elements(By.TAG_NAME,'tr')
+        if i == 0:
+            fecha_libor_12 = td[1].text
+        i += 1
+
+    fecha_libor_12 = (fecha_libor_12.split()[:3])
+    date_string = ' '.join(fecha_libor_12)
+    date_object = datetime.strptime(date_string, '%B %d %Y')
+    fecha_libor_12 = date_object.strftime('%d/%m/%Y')
+
+    return fecha_libor_12
+
+# Variables de Fecha y valor
+fecha_libor = fecha_lib(driver)
+fecha_libor_12 = fecha_lib2(driver)
+Libor_1 = get_libor_1_month(driver)
+Libor_12 = get_libor_12_months(driver)
+
+################################################################################ BNA, Tasa activa de cartera general ###########################################################
+
+# Tasa cartera general
+def get_tasa_cartera_general(driver) :
+    url = "https://www.bna.com.ar/Home/InformacionAlUsuarioFinanciero"
+    driver.get(url)
+
+    # Encontrar el elemento utilizando XPath
+    xpath = '//*[@id="collapseTwo"]/div/div/ul[1]/li[2]'
+    element = driver.find_element(By.XPATH,xpath)
+
+    # Obtener el valor de outerHTML
+    outer_html = element.get_attribute("innerHTML")
+
+    #Adecuar string
+    string_búsqueda = 'T.N.A. (30 días) = '
+    tasa_cartera_general = outer_html[outer_html.find(string_búsqueda) + len(string_búsqueda):outer_html.find('%')].replace(',','.')
+    return tasa_cartera_general
+
+tasa_cartera_general = get_tasa_cartera_general(driver)
+
+
+# Fecha tasa catera general
+def fecha_tasa_cartera_general(driver) :
+    url = "https://www.bna.com.ar/Home/InformacionAlUsuarioFinanciero"
+    driver.get(url)
+
+    # Encontrar el elemento utilizando XPath
+    xpath = '//*//*[@id="collapseTwo"]/div/div/h3[1]'
+    element = driver.find_element(By.XPATH,xpath)
+
+    # Obtener el valor de outerHTML
+    outer_html_2 = element.get_attribute("innerHTML")
+    fecha_tasa_cartera = str(outer_html_2).split()[-1]
+
+    return fecha_tasa_cartera
+
+fecha_tasa_cartera = fecha_tasa_cartera_general(driver)
+
+    
+
+################################################################################ BCRA, BADLAR #################################################################################
+
+# Tasa Badlar
+
+def get_tasa_badlar(driver):
+    url = "https://bcra.gob.ar/"
+    driver.get(url)
+
+    tabla = driver.find_element(By.XPATH, '/html/body/div/div[1]/div[3]/div[5]/table').find_elements(By.TAG_NAME,'tr')
+    i = 0
+    for tr in tabla:
+            td = tr.find_elements(By.TAG_NAME,'td')
+            if i == 8:
+                tasa_badlar = td[1].text
+            i += 1
+    #La variable contiene la tasa N.A. y E.A., se limpian en este paso
+    tasa_badlar = tasa_badlar[:tasa_badlar.find('\n')] .replace(',','.')
+    return tasa_badlar
+tasa_badlar = get_tasa_badlar(driver)
+
+
+def fecha_badlar(driver):
+    url = "https://bcra.gob.ar/"
+    driver.get(url)
+
+    tabla = driver.find_element(By.XPATH, '/html/body/div[2]/div[1]/div[3]/div[5]/table').find_elements(By.TAG_NAME,'tr')
+    i = 0
+    for tr in tabla:
+            td = tr.find_elements(By.TAG_NAME,'td')
+            if i == 8:
+                fecha_tasa_badlar = td[0]
+            i += 1
+    # Se obtiene la fecha limpia 
+    fecha_tasa_badlar = fecha_tasa_badlar.text.split("\n")
+    fecha_tasa_badlar = fecha_tasa_badlar[3]
+    
+    return fecha_tasa_badlar
+
+fecha_tasa_badlar = fecha_badlar(driver)
+print(fecha_tasa_badlar)
+
+##########################################################################################BNA, Plazo Fijo #####################################################################
+
+def get_tasa_pla_fijo (driver) :
+    url = "https://bna.com.ar/Home/InformacionAlUsuarioFinanciero"
+    driver.get(url)
+    time.sleep(2)
+
+    # Localiza el elemento en la página utilizando uno de los métodos find_element
+    element = driver.find_element(By.XPATH, '//*[@id="accordion"]/div/div[3]/div[1]/div/a')
+    element.click()
+    time.sleep(2)
+
+    tabla = driver.find_element(By.XPATH, '//*[@id="collapseTwo"]/div/div/div/table/tbody').find_elements(By.TAG_NAME,'tr')
+    i = 0
+    for tr in tabla:
+        td = tr.find_elements(By.TAG_NAME,'td')
+        if i == 1:
+            tasa_pzo_fjo = td[3].text
+        i += 1
+    tasa_pzo_fjo = tasa_pzo_fjo.replace("%","")
+    tasa_pzo_fjo =tasa_pzo_fjo.replace(",",".")
+    return tasa_pzo_fjo
+
+tasa_pzo_fjo = get_tasa_pla_fijo(driver)
+
+
+# Fecha Pzo Fjo
+fecha_tasa_pzo_fjo = fecha_tasa_cartera_general(driver)
+
+
+################################################################################ BNA, Descubierto Cuenta corriente ###########################################################
+
+
+# Naveación web
+url_bna = "https://bna.com.ar/Home/InformacionAlUsuarioFinanciero"
+driver.get(url_bna)
+time.sleep(2)
+
+# Localiza el elemento en la página utilizando uno de los métodos find_element
+element = driver.find_element(By.XPATH, '//*[@id="accordion"]/div/div[3]/div[1]/div/a')
+element.click()
+time.sleep(2)
+
+# Darle al vinculo de la tasa Cartera General y descubierto en Cta cte
+element = driver.find_element(By.XPATH, '//*[@id="collapseTwo"]/div/div/ul[2]/li[5]/a')
+element.click()
+time.sleep(2)
+
+# Indico que trabaje sobre la nueva ventana abierta
+driver.switch_to.window(driver.window_handles[1])
+
+# Abrir el menú de guardar
+pyautogui.hotkey('ctrl', 's')
+time.sleep(10)
+
+# Navegar al directorio deseado
+pyautogui.write('C:\Querys\TasaBNA.pdf')
+time.sleep(4)
+
+pyautogui.press('enter')
+time.sleep(4)
+
+# Ruta de descargas y archivo
+downloads_path = "C:/Querys/"
+documents_path = "C:/Querys/Tasas Reporting/"
+
+# Buscar todos los archivos "TasaBNA" , renombrarlos y los pone en carpeta especifica
+for file in os.listdir(downloads_path):
+    if file.startswith("TasaBNA"):
+            shutil.move(downloads_path+file, documents_path+"T_BNA.pdf")
+
+# Lee el PDF y trae el text 
+pdf_file = open('C:/Querys/Tasas Reporting/T_BNA.pdf', 'rb')
+pdf_reader = PyPDF2.PdfReader(pdf_file)
+page = pdf_reader.pages[0]
+text = page.extract_text()
+
+# Se crea Variable TSA_BNA
+texto = text
+
+numeros = re.findall(r"\d+,\d+", text)
+
+# Se crea Variable con el valor de la tasa
+tasa_descubierto_cc = numeros[15].replace(",",".")
+
+# Fecha 
+fecha_descubierto_cc = fecha_tasa_cartera_general(driver)
+
+# Identificación del path de la descarga del PDF que contiene la tasa BNA DescubiertoCC
+
+pdf_path = 'C:/Querys/TasaBNA.pdf'
+
+if pdf_path :
+    try:
+        os.remove(pdf_path)
+    except:
+        print(" No hay archivo")
+
+################################################################################ SOFR #################################################################################
+
+def tasa_sofr(driver):
+    #Vuelvo a definir el driver en primer plano, solo para la SOFR
+    driver = webdriver.Chrome(chrome_driver)
+
+    # URL de la tasa SOFR
+    url = 'https://www.cmegroup.com/market-data/cme-group-benchmark-administration/term-sofr.html'
+    driver.get(url)
+    time.sleep(2)
+
+    tabla = driver.find_element(By.XPATH, '//*[@id="main-content"]/div/div[4]/div/div[3]/div/div/div[1]/div/table/tbody').find_elements(By.TAG_NAME,'tr')
+    index = 0
+    for tr in tabla:
+        td = tr.find_elements(By.TAG_NAME,'td')
+        if index == 0:
+            tasa_SOFR = td[1].text
+        index += 1
+        return tasa_SOFR
+    
+tasa_SOFR = tasa_sofr(driver)
+
+#Fecha Sorf
+def fecha_tasa_sofr(driver):
+
+    #Vuelvo a definir el driver en primer plano, solo para la SOFR
+    driver = webdriver.Chrome(chrome_driver)
+
+    # URL de la tasa SOFR
+    url = 'https://www.cmegroup.com/market-data/cme-group-benchmark-administration/term-sofr.html'
+    driver.get(url)
+    time.sleep(2)
+
+    tabla = driver.find_element(By.XPATH, '//*[@id="main-content"]/div/div[4]/div/div[3]/div/div/div[1]/div/table/tbody').find_elements(By.TAG_NAME,'tr')
+    
+    i = 0
+    j = 0
+
+    for fila in tabla:
+        columnas = fila.find_elements(By.TAG_NAME,'td')
+        if i == 0:
+            for columna in columnas:
+                if j == 0:
+                    fecha_tasa_SOFR = columna.get_attribute('innerHTML')
+                j += 1
+        i += 1
+    
+    fecha_tasa_SOFR = fecha_tasa_SOFR.split(' ')
+
+    dia = fecha_tasa_SOFR[0]
+    mes = fecha_tasa_SOFR[1]
+    año = fecha_tasa_SOFR[2]
+
+    # Create a dictionary that maps month names to numbers
+    months = {'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04', 'May': '05', 'Jun': '06',
+                'Jul': '07', 'Aug': '08', 'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'}
+
+    # Convert the month name to a number using the dictionary
+    mes_numero = months[mes]
+    fecha_tasa_SOFR = dia + '/' + mes_numero + '/' + año
+
+    return fecha_tasa_SOFR
+    
+fecha_tasa_SOFR = fecha_tasa_sofr(driver)
+
+
+
+################################################################################ FIN EXTRACCIÓN DE TASAS #################################################################################
+
+# Construcción Dataframe
+data = {"Ultima fecha de actualización": [fecha_libor, fecha_libor_12, fecha_descubierto_cc, fecha_tasa_cartera, fecha_tasa_badlar,fecha_tasa_SOFR,fecha_tasa_pzo_fjo],
+        "Tasa":["Libor_1","Libor_12", "Descubierto_CC", "Cartera_general", "Badlar","SOFR","Plazo_Fijo"],
+        "%" : [Libor_1,Libor_12,tasa_descubierto_cc,tasa_cartera_general,tasa_badlar,tasa_SOFR,tasa_pzo_fjo] 
+        }
+
+# Formato Tabla
+Tabla_df = pd.DataFrame(data)
+print("Las tasas para el día de hoy :")
+print(Tabla_df.to_string(index=False))
