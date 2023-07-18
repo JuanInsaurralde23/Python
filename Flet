@@ -1,0 +1,62 @@
+import flet
+from flet import AppBar, ElevatedButton, Page, Text, View, colors
+import win32com.client
+import subprocess
+import time
+import shutil
+import os
+
+
+
+def main(page: Page):
+    page.title = 'Automatización - Reclamo a deudores'
+    page.theme_mode = flet.ThemeMode.DARK
+    
+    
+
+  
+
+    def route_change(route):
+        page.views.clear()
+
+        page.views.append(
+            View(
+                '/',
+                [   
+                    flet.Image(src=f"ypf azul.png",width=70,height=70,fit=flet.ImageFit.CONTAIN),
+                    AppBar(title=Text('Sistema de Reclamación'), bgcolor=colors.BLUE_GREY_900),
+                    ElevatedButton('Ir a Tablero', on_click=lambda _: page.go('/Tablero')),
+                    ElevatedButton('Saldos SAP', on_click=lambda _:())
+                ]
+            )
+        )
+
+        if page.route == '/Tablero':
+            flet.Image(src=f"ypf azul.png",width=100,height=200)
+            page.views.append(
+                View(
+                    '/Tablero',
+                    [   
+                        flet.Image(src=f"ypf azul.png",width=70,height=70),
+                        AppBar(title=Text('Tablero'), bgcolor=colors.BLUE_GREY_900),
+                        ElevatedButton('Inicio', on_click=lambda _: page.go('/'))
+                        
+                    ]
+                )
+            )
+        
+        page.update()
+
+
+    def view_pop(view):
+        page.views.pop()
+        top_view = page.views[-1]
+        page.go(top_view.route)
+        
+    
+    page.on_route_change = route_change
+    page.on_view_pop = view_pop
+    page.go(page.route)
+
+
+flet.app(target=main)
